@@ -1,1 +1,31 @@
-this is home!!!!
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="space-y-6">
+
+    <div>
+        <h1 class="text-xl font-medium tracking-tight">
+            Dashboard
+        </h1>
+
+        <p class="mt-1 text-sm text-zinc-500">
+            Welcome back.
+        </p>
+    </div>
+
+    <div class="rounded-xl border border-zinc-200 bg-white p-6">
+
+        <h2 class="text-sm font-medium">
+            Total Reports
+        </h2>
+
+        <div class="mt-4 text-3xl font-semibold tracking-tight">
+            128
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

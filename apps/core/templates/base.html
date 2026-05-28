@@ -1,0 +1,33 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Lab System</title>
+
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+
+<body class="bg-zinc-50 text-zinc-800">
+
+    <div class="flex h-screen">
+
+        {% include 'partials/sidebar.html' %}
+
+        <div class="flex flex-1 flex-col">
+
+            {% include 'partials/topbar.html' %}
+
+            <main class="flex-1 overflow-auto p-6">
+                {% block content %}
+                {% endblock %}
+            </main>
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>
