@@ -1,5 +1,5 @@
 <!-- RAIL -->
-<div class="w-12 bg-zinc-950 border-r border-zinc-800">
+<div class="w-10 bg-zinc-950 border-r border-zinc-800 shrink-0">
 
     <div class="flex flex-col items-center py-3 gap-3">
 
@@ -13,6 +13,18 @@
             D
         </div>
 
+        <!-- TOGGLE -->
+        <button @click="sidebarOpen = !sidebarOpen" class="
+            h-6 w-6
+            rounded
+            flex items-center justify-center
+            bg-zinc-800
+            text-zinc-400
+            hover:bg-zinc-700
+            ">
+            <i data-lucide="panel-left-close" class="h-4 w-4"></i>
+        </button>
+
         <div class="h-8 w-8 rounded-md bg-zinc-800"></div>
         <div class="h-8 w-8 rounded-md bg-zinc-800"></div>
 
@@ -21,47 +33,69 @@
 </div>
 
 <!-- SIDEBAR -->
-<div class="w-56 bg-zinc-900 text-zinc-300">
+<div x-bind:style="{
+        width: sidebarOpen ? '224px' : '0px'
+    }" class="
+        overflow-hidden
+        shrink-0
+        bg-zinc-900
+        text-zinc-300
+    " style="
+        transition: width 250ms cubic-bezier(.4,0,.2,1);
+    ">
 
-    <!-- Workspace -->
+    <!-- WORKSPACE -->
     <div class="
         h-11
+
         px-3
+
         flex
         items-center
+
         border-b
         border-zinc-800
-    ">
+        ">
         <span class="text-sm font-medium">
             Demo
         </span>
     </div>
 
-    <!-- Search -->
+    <!-- SEARCH -->
     <div class="p-3">
 
         <button class="
             w-full
+
             h-9
+
             rounded-lg
+
             bg-zinc-800
+
             text-left
+
             px-3
+
             text-sm
-        ">
-            New Chat
+            ">
+            Search...
         </button>
 
     </div>
 
-    <!-- Workspace -->
+    <!-- WORKSPACE -->
     <div class="
         px-3
+
         mb-2
+
         text-[11px]
+
         uppercase
+
         text-zinc-500
-    ">
+        ">
         Workspace
     </div>
 
@@ -69,91 +103,76 @@
 
         <a href="#" class="
             flex
+
             items-center
+
             h-8
+
             rounded-md
+
             px-2
-            bg-zinc-800
+
+            bg-zinc-800/80
+
             text-white
+
             text-sm
-        ">
+            ">
             Companies
         </a>
 
         <a href="#" class="
             flex
+
             items-center
+
             h-8
+
             rounded-md
+
             px-2
+
             text-sm
+
             hover:bg-zinc-800
-        ">
+            ">
             People
         </a>
 
         <a href="#" class="
             flex
+
             items-center
+
             h-8
+
             rounded-md
+
             px-2
+
             text-sm
+
             hover:bg-zinc-800
-        ">
+            ">
             Opportunities
         </a>
 
         <a href="#" class="
             flex
+
             items-center
+
             h-8
+
             rounded-md
+
             px-2
+
             text-sm
+
             hover:bg-zinc-800
-        ">
+            ">
             Tasks
-        </a>
-
-    </div>
-
-    <!-- Other -->
-    <div class="
-        px-3
-        mt-6
-        mb-2
-        text-[11px]
-        uppercase
-        text-zinc-500
-    ">
-        Other
-    </div>
-
-    <div class="px-2">
-
-        <a href="#" class="
-            flex
-            items-center
-            h-8
-            rounded-md
-            px-2
-            text-sm
-            hover:bg-zinc-800
-        ">
-            Settings
-        </a>
-
-        <a href="#" class="
-            flex
-            items-center
-            h-8
-            rounded-md
-            px-2
-            text-sm
-            hover:bg-zinc-800
-        ">
-            Documentation
         </a>
 
     </div>
