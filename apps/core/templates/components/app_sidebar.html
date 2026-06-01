@@ -1,0 +1,115 @@
+<div x-bind:class="sidebarOpen ? 'w-56 px-3' : 'w-10 px-0'" class="
+        shrink-0
+        bg-zinc-900
+        border-r
+        border-zinc-800
+        transition-all
+        duration-200
+        overflow-hidden
+    ">
+
+    <!-- HEADER -->
+    <div x-bind:class="sidebarOpen ? 'justify-between' : 'justify-center'" class="
+            h-11
+            flex
+            items-center
+            border-b
+            border-zinc-800
+        ">
+        <div class="
+            flex
+            items-center
+            gap-2
+        ">
+            <div class="
+                h-5
+                w-5
+                rounded-md
+                bg-sky-600
+                text-[9px]
+                flex
+                items-center
+                justify-center
+            ">
+                D
+            </div>
+            <span x-show="sidebarOpen" class="text-[rgb(179,179,179)] tracking-wide text-sm font-medium">
+                Lab
+            </span>
+        </div>
+        <button x-show="sidebarOpen" @click="sidebarOpen = false" class="text-zinc-500">
+            <i data-lucide="panel-left"></i>
+        </button>
+    </div>
+
+    <!-- MENU -->
+    <div x-data="{ workspaceOpen: true }" class="mt-2">
+
+        <!-- Group label -->
+        <button
+            x-show="sidebarOpen"
+            @click="workspaceOpen = !workspaceOpen"
+            class="
+                w-full
+                flex
+                items-center
+                justify-between
+                h-6
+                px-1
+                mb-1
+                text-zinc-500
+                text-[11px]
+                font-medium
+                uppercase
+                tracking-wider
+                hover:text-zinc-300
+                transition-colors
+            "
+        >
+            <span>Workspace</span>
+            <i
+                data-lucide="chevron-down"
+                x-bind:class="workspaceOpen ? 'rotate-0' : '-rotate-90'"
+                class="w-3 h-3 transition-transform duration-200"
+            ></i>
+        </button>
+
+        <!-- Items -->
+        <div
+            x-show="workspaceOpen"
+            x-transition
+            class="
+                flex
+                flex-col
+                gap-[2px]
+            "
+        >
+            {% for item in sidebar_menu %}
+            <a href="{{ item.url }}" x-bind:class="sidebarOpen ? 'gap-2 h-8 -mx-1 px-1' : 'justify-center w-7 h-7 self-center'" class="
+                flex
+                items-center
+                rounded-md
+                {% if item.active %}bg-white/5{% else %}hover:bg-white/5{% endif %}
+            ">
+                <div class="
+                    shrink-0
+                    w-5
+                    h-5
+                    rounded-md
+                    {{ item.bg_color }}
+                    flex
+                    items-center
+                    justify-center
+                ">
+                    <i data-lucide="{{ item.icon }}" class="w-3 h-3"></i>
+                </div>
+                <span x-show="sidebarOpen" class="text-[rgb(179,179,179)] tracking-wide text-sm font-light">
+                    {{ item.name }}
+                </span>
+            </a>
+            {% endfor %}
+        </div>
+
+    </div>
+
+</div>
