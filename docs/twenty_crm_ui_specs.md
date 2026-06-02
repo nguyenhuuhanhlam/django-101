@@ -58,3 +58,27 @@ Menu items are dynamically rendered via a Django Context Processor (`apps.core.c
 1. **Tailwind Classes:** Written vertically (one class per line) inside `class="..."` for extreme readability and easy version control diffs.
 2. **Alpine Logic:** Inline logic using `x-bind:class` for ternary operations (e.g., `sidebarOpen ? 'w-56' : 'w-10'`).
 3. **DRY Templates:** Use Django Context Processors for arrays of data to avoid repeating complex HTML structures (like menu items).
+
+## Theme Color Palette
+- **Main Workspace Background:** `#09090b` (Tailwind `bg-[#09090b]` / zinc-950).
+- **Sidebar & Header Background:** `#0f0f11` (Tailwind `bg-[#0f0f11]`).
+- **Sidebar Right Border & Header Bottom Border:** `#1f1f23` (Tailwind `border-[#1f1f23]`).
+- **Grid Divider Borders:** `#1a1a1e` (Tailwind `border-[#1a1a1e]`).
+
+## Header Specifications (`app_header.html`)
+- **Height:** `56px` (`h-14`) to align with the sidebar header.
+- **Horizontal Padding:** `px-6` (24px) to align content cleanly with the table's horizontal margins.
+- **Header Button:** Subtle action button with shortcut split indicator (`| ⌘K`), coupled with a `more-horizontal` options dropdown.
+
+## Table & Grid Specifications (`user_list.html`)
+- **Spacing Alignments:** Layout container utilizes `mx-6` (24px) horizontal margins and `pt-5` (20px) top padding below header.
+- **Toolbar Actions:**
+  - View dropdown titled `"All People · {count}"` with list icon and chevron.
+  - Actions (`Filter`, `Sort`, `Options`) are purely text-based (no icons) spaced out with `gap-5` on the right.
+- **Spreadsheet Grid Layout:**
+  - Full grid lines using thin `#1a1a1e` (`border-[#1a1a1e]`) vertical and horizontal borders.
+  - Sizing: compact row height with `py-1.5 px-3.5` cell padding for a data-dense look.
+  - Table Head (`th`): `text-sm` (14px) and `font-normal` (to match sidebar menu items) with small prefixed Lucide icons (`w-3.5 h-3.5`).
+  - Summary Row (`Calculate`): Placed at the bottom without vertical divider lines (`border-r`).
+- **Vertical Stretching:** Content page and table wrapper stretch to fill the viewport (`flex-1 flex flex-col min-h-0`), locking headers/toolbar at the top while letting the table body scroll independently.
+

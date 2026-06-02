@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="
+    pt-5
+    mx-6
+    flex-1
+    flex
+    flex-col
+    min-h-0
+">
+
+    <!-- TOOLBAR (Matches Twenty CRM layout below header) -->
+    <div class="
+        flex
+        items-center
+        justify-between
+        mb-2
+    ">
+        <!-- Left: View dropdown + item count -->
+        <div class="
+            flex
+            items-center
+            gap-1.5
+            cursor-pointer
+            group
+        ">
+            <i data-lucide="list" class="
+                w-4
+                h-4
+                text-zinc-400
+                group-hover:text-zinc-200
+                transition-colors
+            "></i>
+            <span class="
+                text-sm
+                font-medium
+                text-zinc-200
+                group-hover:text-white
+                transition-colors
+            ">
+                All People
+            </span>
+            <span class="
+                text-zinc-600
+                mx-0.5
+            ">
+                ·
+            </span>
+            <span class="
+                text-xs
+                text-zinc-500
+                group-hover:text-zinc-400
+                transition-colors
+            ">
+                {{ users.count|default:0 }}
+            </span>
+            <i data-lucide="chevron-down" class="
+                w-3.5
+                h-3.5
+                text-zinc-500
+                group-hover:text-zinc-300
+                transition-colors
+                ml-0.5
+            "></i>
+        </div>
+
+        <!-- Right: Filter / Sort / Options -->
+        <div class="
+            flex
+            items-center
+            gap-5
+            text-xs
+            text-zinc-400
+        ">
+            <button class="
+                hover:text-zinc-200
+                transition-colors
+            ">
+                Filter
+            </button>
+            <button class="
+                hover:text-zinc-200
+                transition-colors
+            ">
+                Sort
+            </button>
+            <button class="
+                hover:text-zinc-200
+                transition-colors
+            ">
+                Options
+            </button>
+        </div>
+    </div>
+
+    <!-- SPREADSHEET GRID TABLE -->
+    <div class="
+        border
+        border-[#1a1a1e]
+        rounded
+        overflow-hidden
+        bg-zinc-950/20
+        flex-1
+        flex
+        flex-col
+        min-h-0
+        mb-4
+    ">
+        <div class="
+            overflow-x-auto
+            flex-1
+            overflow-y-auto
+            min-h-0
+        ">
+            <table class="
+                w-full
+                border-collapse
+                text-left
+            ">
+                <thead>
+                    <tr class="
+                        bg-zinc-950/40
+                    ">
+                        <!-- Checkbox header -->
+                        <th class="
+                            w-10
+                            py-1.5
+                            px-3.5
+                            border-r
+                            border-b
+                            border-[#1a1a1e]
+                            text-center
+                        ">
+                            <input type="checkbox" class="
+                                    w-3.5
+                                    h-3.5
+                                    rounded-sm
+                                    border-zinc-800
+                                    bg-transparent
+                                    checked:bg-violet-600
+                                    checked:border-violet-600
+                                    focus:ring-0
+                                    focus:ring-offset-0
+                                    cursor-pointer
+                                ">
+                        </th>
+                        <!-- User / Name header -->
+                        <th class="
+                            py-1.5
+                            px-3.5
+                            border-r
+                            border-b
+                            border-[#1a1a1e]
+                            text-sm
+                            font-normal
+                            text-zinc-400
+                            tracking-wide
+                        ">
+                            <div class="
+                                flex
+                                items-center
+                                gap-1.5
+                            ">
+                                <i data-lucide="user" class="
+                                    w-3.5
+                                    h-3.5
+                                    text-zinc-500
+                                "></i>
+                                <span>Name</span>
+                            </div>
+                        </th>
+                        <!-- Email header -->
+                        <th class="
+                            py-1.5
+                            px-3.5
+                            border-r
+                            border-b
+                            border-[#1a1a1e]
+                            text-sm
+                            font-normal
+                            text-zinc-400
+                            tracking-wide
+                        ">
+                            <div class="
+                                flex
+                                items-center
+                                gap-1.5
+                            ">
+                                <i data-lucide="mail" class="
+                                    w-3.5
+                                    h-3.5
+                                    text-zinc-500
+                                "></i>
+                                <span>Email</span>
+                            </div>
+                        </th>
+                        <!-- Status header -->
+                        <th class="
+                            py-1.5
+                            px-3.5
+                            border-r
+                            border-b
+                            border-[#1a1a1e]
+                            text-sm
+                            font-normal
+                            text-zinc-400
+                            tracking-wide
+                        ">
+                            <div class="
+                                flex
+                                items-center
+                                gap-1.5
+                            ">
+                                <i data-lucide="activity" class="
+                                    w-3.5
+                                    h-3.5
+                                    text-zinc-500
+                                "></i>
+                                <span>Status</span>
+                            </div>
+                        </th>
+                        <!-- Date Joined header -->
+                        <th class="
+                            py-1.5
+                            px-3.5
+                            border-r
+                            border-b
+                            border-[#1a1a1e]
+                            text-sm
+                            font-normal
+                            text-zinc-400
+                            tracking-wide
+                        ">
+                            <div class="
+                                flex
+                                items-center
+                                gap-1.5
+                            ">
+                                <i data-lucide="calendar" class="
+                                    w-3.5
+                                    h-3.5
+                                    text-zinc-500
+                                "></i>
+                                <span>Creation date</span>
+                            </div>
+                        </th>
+                        <!-- Add column header '+' -->
+                        <th class="
+                            w-10
+                            py-1.5
+                            px-3.5
+                            border-b
+                            border-[#1a1a1e]
+                            text-center
+                            text-zinc-500
+                            hover:text-zinc-300
+                            cursor-pointer
+                        ">
+                            <i data-lucide="plus" class="
+                                w-3.5
+                                h-3.5
+                                mx-auto
+                            "></i>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr class="
+                        hover:bg-white/5
+                        transition-colors
+                    ">
+                        <!-- Checkbox -->
+                        <td class="
+                            py-1.5
+                            px-3.5
+                            border-r
+                            border-b
+                            border-[#1a1a1e]
+                            text-center
+                        ">
+                            <input type="checkbox" class="
+                                    w-3.5
+                                    h-3.5
+                                    rounded-sm
+                                    border-zinc-800
+                                    bg-transparent
+                                    checked:bg-violet-600
+                                    checked:border-violet-600
+                                    focus:ring-0
+                                    focus:ring-offset-0
+                                    cursor-pointer
+                                ">
+                        </td>
+                        <!-- User / Name info -->
+                        <td class="
+                            py-1.5
+                            px-3.5
+                            border-r
+                            border-b
+                            border-[#1a1a1e]
+                        ">
+                            <div class="
+                                flex
+                                items-center
+                                gap-2
+                            ">
+                                <div class="
+                                    w-4.5
+                                    h-4.5
+                                    rounded
+                                    {% if user.username == 'administrator' %}bg-violet-600{% else %}bg-sky-600{% endif %}
+                                    text-white
+                                    text-[9px]
+                                    font-bold
+                                    flex
+                                    items-center
+                                    justify-center
+                                    shrink-0
+                                ">
+                                    {{ user.username|slice:":1"|upper }}
+                                </div>
+                                <span class="
+                                    text-zinc-200
+                                    text-xs
+                                    font-medium
+                                ">
+                                    {% if user.first_name or user.last_name %}
+                                    {{ user.first_name }} {{ user.last_name }}
+                                    {% else %}
+                                    {{ user.username }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </td>
+                        <!-- Email (Pill domain style) -->
+                        <td class="
+                            py-1.5
+                            px-3.5
+                            border-r
+                            border-b
+                            border-[#1a1a1e]
+                        ">
+                            {% if user.email %}
+                            <span class="
+                                inline-flex
+                                items-center
+                                px-2
+                                py-0.5
+                                rounded-full
+                                text-[11px]
+                                font-light
+                                text-zinc-400
+                                bg-zinc-900/40
+                                border
+                                border-zinc-800/80
+                            ">
+                                {{ user.email }}
+                            </span>
+                            {% else %}
+                            <span class="text-zinc-600">—</span>
+                            {% endif %}
+                        </td>
+                        <!-- Status (Dot label style) -->
+                        <td class="
+                            py-1.5
+                            px-3.5
+                            border-r
+                            border-b
+                            border-[#1a1a1e]
+                        ">
+                            <div class="
+                                flex
+                                items-center
+                                gap-1.5
+                            ">
+                                <div class="
+                                    w-1.5
+                                    h-1.5
+                                    rounded-full
+                                    {% if user.is_active %}bg-emerald-500{% else %}bg-zinc-600{% endif %}
+                                "></div>
+                                <span class="
+                                    text-[11px]
+                                    text-zinc-400
+                                ">
+                                    {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </div>
+                        </td>
+                        <!-- Date Joined -->
+                        <td class="
+                            py-1.5
+                            px-3.5
+                            border-r
+                            border-b
+                            border-[#1a1a1e]
+                            text-xs
+                            text-zinc-400
+                        ">
+                            {{ user.date_joined|date:"M d, Y" }}
+                        </td>
+                        <!-- Add column cell spacer -->
+                        <td class="
+                            py-1.5
+                            px-3.5
+                            border-b
+                            border-[#1a1a1e]
+                        "></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="
+                            py-6
+                            px-4
+                            text-center
+                            text-zinc-500
+                            text-xs
+                        ">
+                            No users found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- '+ Add New' ROW (Matches Twenty CRM layout) -->
+                    <tr class="
+                        hover:bg-white/5
+                        transition-colors
+                    ">
+                        <td class="
+                            py-1.5
+                            px-3.5
+                            border-r
+                            border-b
+                            border-[#1a1a1e]
+                            text-center
+                            text-zinc-500
+                            text-xs
+                        ">
+                            +
+                        </td>
+                        <td class="
+                            py-1.5
+                            px-3.5
+                            border-r
+                            border-b
+                            border-[#1a1a1e]
+                            text-xs
+                            text-zinc-500
+                            hover:text-zinc-300
+                            cursor-pointer
+                        ">
+                            Add New
+                        </td>
+                        <td class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e]"></td>
+                        <td class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e]"></td>
+                        <td class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e]"></td>
+                        <td class="py-1.5 px-3.5 border-b border-[#1a1a1e]"></td>
+                    </tr>
+
+                    <!-- 'Calculate' ROW (Summary row at the bottom) -->
+                    <tr class="
+                        bg-zinc-950/20
+                        text-zinc-500
+                        text-[11px]
+                    ">
+                        <td class="
+                            py-1.5
+                            px-3.5
+                        "></td>
+                        <td class="
+                            py-1.5
+                            px-3.5
+                        ">
+                            <div class="
+                                flex
+                                items-center
+                                justify-between
+                                w-full
+                            ">
+                                <span class="text-zinc-600">Calculate</span>
+                                <span class="text-zinc-500">Count all {{ users.count|default:0 }}</span>
+                            </div>
+                        </td>
+                        <td class="py-1.5 px-3.5"></td>
+                        <td class="py-1.5 px-3.5"></td>
+                        <td class="py-1.5 px-3.5"></td>
+                        <td class="py-1.5 px-3.5"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
