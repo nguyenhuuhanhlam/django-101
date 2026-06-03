@@ -82,3 +82,35 @@ Menu items are dynamically rendered via a Django Context Processor (`apps.core.c
   - Summary Row (`Calculate`): Placed at the bottom without vertical divider lines (`border-r`).
 - **Vertical Stretching:** Content page and table wrapper stretch to fill the viewport (`flex-1 flex flex-col min-h-0`), locking headers/toolbar at the top while letting the table body scroll independently.
 
+### User Detail Split Panel
+- `user_list.html` now owns an Alpine component at the page root with:
+  - `detailOpen`: controls whether the right-side detail panel is visible.
+  - `panelWidth`: current detail panel width, default `380px`.
+  - `selectedUser`: plain JS object populated from the clicked Django-rendered table row.
+  - `selectUser(user)`: stores the selected user, opens the panel, then calls `lucide.createIcons(...)` inside `$nextTick()` so icons inside dynamically rendered Alpine content are hydrated.
+  - `startResize(event)`: handles mouse resize for the split panel.
+- Clicking a user row opens the right split panel. The selected row uses `x-bind:class` to apply `bg-white/5`.
+- Checkboxes inside rows must use `@click.stop` so selecting a checkbox does not open the detail panel.
+- Keyboard access: rows have `tabindex="0"` and `@keydown.enter="$el.click()"`.
+- The detail panel is an `<aside>` rendered to the right of the table with `x-cloak`, `x-show="detailOpen"`, and `x-transition`.
+- Panel sizing:
+  - Default width: `380px`.
+  - Minimum width: `320px`.
+  - Maximum width: `560px`.
+  - Resize handle is a `w-1.5` absolute strip on the panel's left edge with `cursor-col-resize` and `hover:bg-violet-500/40`.
+- Panel layout:
+  - Background: `bg-[#0f0f11]`.
+  - Border: `border-[#1a1a1e]`.
+  - It is separated from the table by `ml-3`.
+  - Header height is `h-14`, matching the app header rhythm.
+  - Body uses `overflow-y-auto`, so detail content scrolls independently.
+- Current detail sections:
+  - `Profile`: username, first name, last name.
+  - `Access`: active/inactive status, staff flag, superuser flag.
+  - `Timeline`: created timestamp, last login timestamp.
+- `base.html` contains a global `[x-cloak] { display: none !important; }` rule. Keep this rule because Alpine loads with `defer` and the split panel should not flash before initialization.
+
+### Tailwind Build Note
+- New split panel classes are compiled into `static/css/style.css` from `static/src/input.css`.
+- After changing templates or Tailwind utility classes, rebuild CSS with:
+  - `npx @tailwindcss/cli -i .\static\src\input.css -o .\static\css\style.css`

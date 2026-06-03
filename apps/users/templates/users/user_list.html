@@ -8,7 +8,38 @@
     flex
     flex-col
     min-h-0
-">
+" x-data="{
+    detailOpen: false,
+    panelWidth: 380,
+    selectedUser: null,
+    selectUser(user) {
+        this.selectedUser = user;
+        this.detailOpen = true;
+        this.$nextTick(() => lucide.createIcons({
+            attrs: {
+                width: 16,
+                height: 16,
+                strokeWidth: 1.75
+            }
+        }));
+    },
+    startResize(event) {
+        const startX = event.clientX;
+        const startWidth = this.panelWidth;
+        const onMove = (moveEvent) => {
+            const nextWidth = startWidth - (moveEvent.clientX - startX);
+            this.panelWidth = Math.min(560, Math.max(320, nextWidth));
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.body.classList.remove('select-none');
+        };
+        document.body.classList.add('select-none');
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+}">
 
     <!-- TOOLBAR (Matches Twenty CRM layout below header) -->
     <div class="
@@ -94,19 +125,25 @@
         </div>
     </div>
 
-    <!-- SPREADSHEET GRID TABLE -->
+    <!-- SPREADSHEET GRID TABLE + DETAIL SPLIT PANEL -->
     <div class="
-        border
-        border-[#1a1a1e]
-        rounded
-        overflow-hidden
-        bg-zinc-950/20
         flex-1
         flex
-        flex-col
         min-h-0
         mb-4
     ">
+        <div class="
+            flex-1
+            min-w-0
+            min-h-0
+            border
+            border-[#1a1a1e]
+            rounded
+            overflow-hidden
+            bg-zinc-950/20
+            flex
+            flex-col
+        ">
         <div class="
             overflow-x-auto
             flex-1
@@ -270,7 +307,23 @@
                     <tr class="
                         hover:bg-white/5
                         transition-colors
-                    ">
+                        cursor-pointer
+                    " x-bind:class="selectedUser && selectedUser.id === {{ user.id }} ? 'bg-white/5' : ''" @click="selectUser({
+                        id: {{ user.id }},
+                        username: '{{ user.username|escapejs }}',
+                        name: '{% if user.first_name or user.last_name %}{{ user.first_name|escapejs }} {{ user.last_name|escapejs }}{% else %}{{ user.username|escapejs }}{% endif %}',
+                        firstName: '{{ user.first_name|default:"-"|escapejs }}',
+                        lastName: '{{ user.last_name|default:"-"|escapejs }}',
+                        email: '{{ user.email|default:"-"|escapejs }}',
+                        status: '{% if user.is_active %}Active{% else %}Inactive{% endif %}',
+                        isActive: {{ user.is_active|yesno:'true,false' }},
+                        isStaff: {{ user.is_staff|yesno:'true,false' }},
+                        isSuperuser: {{ user.is_superuser|yesno:'true,false' }},
+                        dateJoined: '{{ user.date_joined|date:"M d, Y H:i"|escapejs }}',
+                        lastLogin: '{% if user.last_login %}{{ user.last_login|date:"M d, Y H:i"|escapejs }}{% else %}-{% endif %}',
+                        initial: '{{ user.username|slice:":1"|upper|escapejs }}',
+                        avatarClass: '{% if user.username == 'administrator' %}bg-violet-600{% else %}bg-sky-600{% endif %}'
+                    })" tabindex="0" @keydown.enter="$el.click()">
                         <!-- Checkbox -->
                         <td class="
                             py-1.5
@@ -280,7 +333,7 @@
                             border-[#1a1a1e]
                             text-center
                         ">
-                            <input type="checkbox" class="
+                            <input type="checkbox" @click.stop class="
                                     w-3.5
                                     h-3.5
                                     rounded-sm
@@ -491,6 +544,222 @@
                 </tbody>
             </table>
         </div>
+        </div>
+
+        <aside x-cloak x-show="detailOpen" x-transition class="
+            relative
+            ml-3
+            min-h-0
+            shrink-0
+            border
+            border-[#1a1a1e]
+            rounded
+            overflow-hidden
+            bg-[#0f0f11]
+            flex
+            flex-col
+        " x-bind:style="`width: ${panelWidth}px`">
+            <div @mousedown="startResize($event)" class="
+                absolute
+                left-0
+                top-0
+                bottom-0
+                w-1.5
+                cursor-col-resize
+                hover:bg-violet-500/40
+                transition-colors
+                z-10
+            "></div>
+
+            <template x-if="selectedUser">
+                <div class="
+                    flex
+                    flex-col
+                    min-h-0
+                    h-full
+                ">
+                    <div class="
+                        h-14
+                        px-4
+                        border-b
+                        border-[#1a1a1e]
+                        flex
+                        items-center
+                        justify-between
+                        shrink-0
+                    ">
+                        <div class="
+                            flex
+                            items-center
+                            gap-2.5
+                            min-w-0
+                        ">
+                            <div class="
+                                w-7
+                                h-7
+                                rounded
+                                text-white
+                                text-xs
+                                font-bold
+                                flex
+                                items-center
+                                justify-center
+                                shrink-0
+                            " x-bind:class="selectedUser.avatarClass" x-text="selectedUser.initial"></div>
+                            <div class="
+                                min-w-0
+                            ">
+                                <div class="
+                                    text-sm
+                                    font-medium
+                                    text-zinc-100
+                                    truncate
+                                " x-text="selectedUser.name"></div>
+                                <div class="
+                                    text-[11px]
+                                    text-zinc-500
+                                    truncate
+                                " x-text="selectedUser.email"></div>
+                            </div>
+                        </div>
+                        <button @click="detailOpen = false" class="
+                            w-7
+                            h-7
+                            rounded
+                            flex
+                            items-center
+                            justify-center
+                            text-zinc-500
+                            hover:text-zinc-200
+                            hover:bg-white/5
+                            transition-colors
+                        ">
+                            <i data-lucide="x" class="
+                                w-4
+                                h-4
+                            "></i>
+                        </button>
+                    </div>
+
+                    <div class="
+                        flex-1
+                        min-h-0
+                        overflow-y-auto
+                        px-4
+                        py-4
+                        space-y-5
+                    ">
+                        <div class="
+                            space-y-2.5
+                        ">
+                            <div class="
+                                text-[11px]
+                                font-medium
+                                uppercase
+                                tracking-wider
+                                text-zinc-500
+                            ">
+                                Profile
+                            </div>
+                            <div class="
+                                border
+                                border-[#1a1a1e]
+                                rounded
+                                overflow-hidden
+                            ">
+                                <div class="grid grid-cols-[120px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Username</div>
+                                    <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser.username"></div>
+                                </div>
+                                <div class="grid grid-cols-[120px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">First name</div>
+                                    <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser.firstName"></div>
+                                </div>
+                                <div class="grid grid-cols-[120px_minmax(0,1fr)]">
+                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Last name</div>
+                                    <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser.lastName"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="
+                            space-y-2.5
+                        ">
+                            <div class="
+                                text-[11px]
+                                font-medium
+                                uppercase
+                                tracking-wider
+                                text-zinc-500
+                            ">
+                                Access
+                            </div>
+                            <div class="
+                                border
+                                border-[#1a1a1e]
+                                rounded
+                                overflow-hidden
+                            ">
+                                <div class="grid grid-cols-[120px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Status</div>
+                                    <div class="px-3 py-2 text-xs text-zinc-300">
+                                        <span class="
+                                            inline-flex
+                                            items-center
+                                            gap-1.5
+                                        ">
+                                            <span class="
+                                                w-1.5
+                                                h-1.5
+                                                rounded-full
+                                            " x-bind:class="selectedUser.isActive ? 'bg-emerald-500' : 'bg-zinc-600'"></span>
+                                            <span x-text="selectedUser.status"></span>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-[120px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Staff</div>
+                                    <div class="px-3 py-2 text-xs text-zinc-300" x-text="selectedUser.isStaff ? 'Yes' : 'No'"></div>
+                                </div>
+                                <div class="grid grid-cols-[120px_minmax(0,1fr)]">
+                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Superuser</div>
+                                    <div class="px-3 py-2 text-xs text-zinc-300" x-text="selectedUser.isSuperuser ? 'Yes' : 'No'"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="
+                            space-y-2.5
+                        ">
+                            <div class="
+                                text-[11px]
+                                font-medium
+                                uppercase
+                                tracking-wider
+                                text-zinc-500
+                            ">
+                                Timeline
+                            </div>
+                            <div class="
+                                border
+                                border-[#1a1a1e]
+                                rounded
+                                overflow-hidden
+                            ">
+                                <div class="grid grid-cols-[120px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Created</div>
+                                    <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser.dateJoined"></div>
+                                </div>
+                                <div class="grid grid-cols-[120px_minmax(0,1fr)]">
+                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Last login</div>
+                                    <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser.lastLogin"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </aside>
     </div>
 </div>
 {% endblock %}
