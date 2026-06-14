@@ -1,2 +1,2 @@
-@source "../../apps/**/*.{html,py}";
+@source "../../apps";
 @import "tailwindcss";

@@ -1,0 +1,411 @@
+{# ══════════════════════════════════════════════════════════════ #}
+{# DETAIL / EDIT / CREATE PANEL                                  #}
+{# Biến Alpine dùng: detailOpen, panelWidth, mode, selectedUser, #}
+{#   editData, createData, errors, loading, deleteConfirm,       #}
+{#   startResize(), startEdit(), cancelEdit(), saveEdit(),        #}
+{#   openCreate(), saveCreate(), confirmDelete(), toggleActive()  #}
+{# ══════════════════════════════════════════════════════════════ #}
+<aside
+    x-cloak
+    x-show="detailOpen"
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0 translate-x-4"
+    x-transition:enter-end="opacity-100 translate-x-0"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="opacity-100 translate-x-0"
+    x-transition:leave-end="opacity-0 translate-x-4"
+    class="
+        relative ml-3 min-h-0 shrink-0
+        border border-[#1a1a1e] rounded overflow-hidden
+        bg-[#0f0f11] flex flex-col
+    "
+    :style="`width: ${panelWidth}px`"
+>
+    {# Resize handle #}
+    <div
+        @mousedown="startResize($event)"
+        class="
+            absolute left-0 top-0 bottom-0 w-1.5 z-10
+            cursor-col-resize hover:bg-violet-500/40 transition-colors
+        "
+    ></div>
+
+    {# ════════════════════════════════════════════════ #}
+    {# PANEL HEADER                                    #}
+    {# ════════════════════════════════════════════════ #}
+    <div class="h-14 px-4 border-b border-[#1a1a1e] flex items-center justify-between shrink-0">
+
+        {# VIEW mode header #}
+        <div x-show="mode === 'view' && selectedUser" class="flex items-center gap-2.5 min-w-0 flex-1">
+            <div
+                class="w-8 h-8 rounded text-white text-sm font-bold flex items-center justify-center shrink-0"
+                :class="selectedUser ? selectedUser.avatar_class : ''"
+                x-text="selectedUser ? selectedUser.initial : ''"
+            ></div>
+            <div class="min-w-0">
+                <div class="text-sm font-medium text-zinc-100 truncate" x-text="selectedUser ? selectedUser.name : ''"></div>
+                <div class="text-[11px] text-zinc-500 truncate" x-text="selectedUser ? selectedUser.email || 'No email' : ''"></div>
+            </div>
+        </div>
+
+        {# EDIT mode header #}
+        <div x-show="mode === 'edit'" class="flex items-center gap-2 min-w-0 flex-1">
+            <i data-lucide="pencil" class="w-4 h-4 text-violet-400 shrink-0"></i>
+            <div class="min-w-0">
+                <div class="text-sm font-medium text-zinc-100 truncate">Edit person</div>
+                <div class="text-[11px] text-zinc-500 truncate" x-text="selectedUser ? selectedUser.username : ''"></div>
+            </div>
+        </div>
+
+        {# CREATE mode header #}
+        <div x-show="mode === 'create'" class="flex items-center gap-2 min-w-0 flex-1">
+            <div class="w-8 h-8 rounded bg-violet-600/20 border border-violet-500/20 flex items-center justify-center shrink-0">
+                <i data-lucide="user-plus" class="w-4 h-4 text-violet-400"></i>
+            </div>
+            <div class="min-w-0">
+                <div class="text-sm font-medium text-zinc-100">New person</div>
+                <div class="text-[11px] text-zinc-500">Fill in the details below</div>
+            </div>
+        </div>
+
+        {# Close button #}
+        <button
+            @click="detailOpen = false; mode = 'view'; errors = {}; deleteConfirm = false;"
+            class="w-7 h-7 ml-2 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-colors shrink-0"
+        >
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+    </div>
+
+    {# ════════════════════════════════════════════════ #}
+    {# PANEL BODY                                      #}
+    {# ════════════════════════════════════════════════ #}
+    <div class="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-5">
+
+        {# Global error banner #}
+        <template x-if="errors.__all__">
+            <div class="flex items-start gap-2 px-3 py-2.5 rounded bg-rose-600/10 border border-rose-600/20">
+                <i data-lucide="alert-circle" class="w-4 h-4 text-rose-400 shrink-0 mt-0.5"></i>
+                <p class="text-[11px] text-rose-300" x-text="errors.__all__ && errors.__all__[0]"></p>
+            </div>
+        </template>
+
+        {# ──────── VIEW MODE ──────── #}
+        <div x-show="mode === 'view' && selectedUser" class="space-y-5">
+
+            {# Role badges #}
+            <div class="flex flex-wrap gap-1.5">
+                <template x-if="selectedUser && selectedUser.is_superuser">
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-violet-600/20 text-violet-400 border border-violet-600/30">
+                        <i data-lucide="shield" class="w-2.5 h-2.5"></i>Superuser
+                    </span>
+                </template>
+                <template x-if="selectedUser && selectedUser.is_staff && !selectedUser.is_superuser">
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-sky-600/20 text-sky-400 border border-sky-600/30">
+                        <i data-lucide="badge-check" class="w-2.5 h-2.5"></i>Staff
+                    </span>
+                </template>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-800/60 text-zinc-400 border border-zinc-700/50">
+                    <i data-lucide="user" class="w-2.5 h-2.5"></i>User
+                </span>
+            </div>
+
+            {# Profile section #}
+            <div class="space-y-2.5">
+                <p class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Profile</p>
+                <div class="border border-[#1a1a1e] rounded overflow-hidden">
+                    <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                        <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Username</div>
+                        <div class="px-3 py-2 text-xs text-zinc-300 truncate font-mono" x-text="selectedUser ? selectedUser.username : ''"></div>
+                    </div>
+                    <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                        <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">First name</div>
+                        <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser ? selectedUser.first_name : ''"></div>
+                    </div>
+                    <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                        <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Last name</div>
+                        <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser ? selectedUser.last_name : ''"></div>
+                    </div>
+                    <div class="grid grid-cols-[110px_minmax(0,1fr)]">
+                        <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Email</div>
+                        <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser && selectedUser.email ? selectedUser.email : '—'"></div>
+                    </div>
+                </div>
+            </div>
+
+            {# Access section #}
+            <div class="space-y-2.5">
+                <p class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Access</p>
+                <div class="border border-[#1a1a1e] rounded overflow-hidden">
+                    <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                        <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Status</div>
+                        <div class="px-3 py-2 text-xs text-zinc-300">
+                            <span class="inline-flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full" :class="selectedUser && selectedUser.is_active ? 'bg-emerald-500' : 'bg-zinc-600'"></span>
+                                <span x-text="selectedUser ? selectedUser.status : ''"></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                        <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Staff</div>
+                        <div class="px-3 py-2 text-xs" :class="selectedUser && selectedUser.is_staff ? 'text-sky-400' : 'text-zinc-500'" x-text="selectedUser && selectedUser.is_staff ? 'Yes' : 'No'"></div>
+                    </div>
+                    <div class="grid grid-cols-[110px_minmax(0,1fr)]">
+                        <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Superuser</div>
+                        <div class="px-3 py-2 text-xs" :class="selectedUser && selectedUser.is_superuser ? 'text-violet-400' : 'text-zinc-500'" x-text="selectedUser && selectedUser.is_superuser ? 'Yes' : 'No'"></div>
+                    </div>
+                </div>
+            </div>
+
+            {# Timeline section #}
+            <div class="space-y-2.5">
+                <p class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Timeline</p>
+                <div class="border border-[#1a1a1e] rounded overflow-hidden">
+                    <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                        <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Created</div>
+                        <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser ? selectedUser.date_joined : ''"></div>
+                    </div>
+                    <div class="grid grid-cols-[110px_minmax(0,1fr)]">
+                        <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Last login</div>
+                        <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser ? selectedUser.last_login : ''"></div>
+                    </div>
+                </div>
+            </div>
+        </div>{# end VIEW mode #}
+
+        {# ──────── EDIT MODE ──────── #}
+        <div x-show="mode === 'edit'" class="space-y-4">
+            <div class="border border-[#1a1a1e] rounded overflow-hidden">
+                {# First name #}
+                <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                    <label class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">First name</label>
+                    <div class="px-3 py-1.5">
+                        <input x-model="editData.first_name" type="text" placeholder="First name"
+                            class="w-full bg-transparent text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none caret-violet-400">
+                        <p x-show="errors.first_name" class="text-[10px] text-rose-400 mt-0.5" x-text="errors.first_name && errors.first_name[0]"></p>
+                    </div>
+                </div>
+                {# Last name #}
+                <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                    <label class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">Last name</label>
+                    <div class="px-3 py-1.5">
+                        <input x-model="editData.last_name" type="text" placeholder="Last name"
+                            class="w-full bg-transparent text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none caret-violet-400">
+                        <p x-show="errors.last_name" class="text-[10px] text-rose-400 mt-0.5" x-text="errors.last_name && errors.last_name[0]"></p>
+                    </div>
+                </div>
+                {# Email #}
+                <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                    <label class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">Email</label>
+                    <div class="px-3 py-1.5">
+                        <input x-model="editData.email" type="email" placeholder="email@example.com"
+                            class="w-full bg-transparent text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none caret-violet-400">
+                        <p x-show="errors.email" class="text-[10px] text-rose-400 mt-0.5" x-text="errors.email && errors.email[0]"></p>
+                    </div>
+                </div>
+                {# Staff status #}
+                <label class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e] cursor-pointer hover:bg-white/3 transition-colors">
+                    <span class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">Staff</span>
+                    <div class="px-3 py-2 flex items-center justify-between">
+                        <span class="text-[10px] text-zinc-600">Can access the admin site</span>
+                        <input type="checkbox" x-model="editData.is_staff"
+                            class="w-3.5 h-3.5 rounded-sm border-zinc-700 bg-zinc-900 checked:bg-violet-600 checked:border-violet-600 focus:ring-0 cursor-pointer">
+                    </div>
+                </label>
+                {# Active #}
+                <label class="grid grid-cols-[110px_minmax(0,1fr)] cursor-pointer hover:bg-white/3 transition-colors">
+                    <span class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">Active</span>
+                    <div class="px-3 py-2 flex items-center justify-between">
+                        <span class="text-[10px] text-zinc-600">Allows the user to log in</span>
+                        <input type="checkbox" x-model="editData.is_active"
+                            class="w-3.5 h-3.5 rounded-sm border-zinc-700 bg-zinc-900 checked:bg-emerald-600 checked:border-emerald-600 focus:ring-0 cursor-pointer">
+                    </div>
+                </label>
+            </div>
+        </div>{# end EDIT mode #}
+
+        {# ──────── CREATE MODE ──────── #}
+        <div x-show="mode === 'create'" class="space-y-4">
+            <div class="border border-[#1a1a1e] rounded overflow-hidden">
+                {# Username #}
+                <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                    <label class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">
+                        Username <span class="text-rose-500 ml-0.5">*</span>
+                    </label>
+                    <div class="px-3 py-1.5">
+                        <input x-model="createData.username" type="text" placeholder="username" autocomplete="off"
+                            class="w-full bg-transparent text-xs text-zinc-200 placeholder-zinc-600 font-mono focus:outline-none caret-violet-400">
+                        <p x-show="errors.username" class="text-[10px] text-rose-400 mt-0.5" x-text="errors.username && errors.username[0]"></p>
+                    </div>
+                </div>
+                {# First name #}
+                <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                    <label class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">First name</label>
+                    <div class="px-3 py-1.5">
+                        <input x-model="createData.first_name" type="text" placeholder="First"
+                            class="w-full bg-transparent text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none caret-violet-400">
+                    </div>
+                </div>
+                {# Last name #}
+                <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                    <label class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">Last name</label>
+                    <div class="px-3 py-1.5">
+                        <input x-model="createData.last_name" type="text" placeholder="Last"
+                            class="w-full bg-transparent text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none caret-violet-400">
+                    </div>
+                </div>
+                {# Email #}
+                <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                    <label class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">Email</label>
+                    <div class="px-3 py-1.5">
+                        <input x-model="createData.email" type="email" placeholder="email@example.com"
+                            class="w-full bg-transparent text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none caret-violet-400">
+                        <p x-show="errors.email" class="text-[10px] text-rose-400 mt-0.5" x-text="errors.email && errors.email[0]"></p>
+                    </div>
+                </div>
+                {# Password #}
+                <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                    <label class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">
+                        Password <span class="text-rose-500 ml-0.5">*</span>
+                    </label>
+                    <div class="px-3 py-1.5">
+                        <input x-model="createData.password1" type="password" placeholder="••••••••" autocomplete="new-password"
+                            class="w-full bg-transparent text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none caret-violet-400">
+                        <p x-show="errors.password1" class="text-[10px] text-rose-400 mt-0.5" x-text="errors.password1 && errors.password1[0]"></p>
+                    </div>
+                </div>
+                {# Confirm password #}
+                <div class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e]">
+                    <label class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">
+                        Confirm <span class="text-rose-500 ml-0.5">*</span>
+                    </label>
+                    <div class="px-3 py-1.5">
+                        <input x-model="createData.password2" type="password" placeholder="••••••••" autocomplete="new-password"
+                            class="w-full bg-transparent text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none caret-violet-400">
+                        <p x-show="errors.password2" class="text-[10px] text-rose-400 mt-0.5" x-text="errors.password2 && errors.password2[0]"></p>
+                    </div>
+                </div>
+                {# Staff status #}
+                <label class="grid grid-cols-[110px_minmax(0,1fr)] border-b border-[#1a1a1e] cursor-pointer hover:bg-white/3 transition-colors">
+                    <span class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">Staff</span>
+                    <div class="px-3 py-2 flex items-center justify-between">
+                        <span class="text-[10px] text-zinc-600">Can access the admin site</span>
+                        <input type="checkbox" x-model="createData.is_staff"
+                            class="w-3.5 h-3.5 rounded-sm border-zinc-700 bg-zinc-900 checked:bg-violet-600 checked:border-violet-600 focus:ring-0 cursor-pointer">
+                    </div>
+                </label>
+                {# Active #}
+                <label class="grid grid-cols-[110px_minmax(0,1fr)] cursor-pointer hover:bg-white/3 transition-colors">
+                    <span class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e] flex items-center shrink-0">Active</span>
+                    <div class="px-3 py-2 flex items-center justify-between">
+                        <span class="text-[10px] text-zinc-600">Allows the user to log in</span>
+                        <input type="checkbox" x-model="createData.is_active" checked
+                            class="w-3.5 h-3.5 rounded-sm border-zinc-700 bg-zinc-900 checked:bg-emerald-600 checked:border-emerald-600 focus:ring-0 cursor-pointer">
+                    </div>
+                </label>
+            </div>
+        </div>{# end CREATE mode #}
+
+    </div>{# end panel body #}
+
+    {# ════════════════════════════════════════════════ #}
+    {# PANEL FOOTER                                    #}
+    {# ════════════════════════════════════════════════ #}
+    <div class="shrink-0 border-t border-[#1a1a1e] px-4 py-3">
+
+        {# VIEW footer — Edit / Toggle Active / Delete #}
+        <div x-show="mode === 'view' && selectedUser" class="flex items-center gap-2">
+            <button
+                @click="startEdit()"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-200 transition-colors"
+            >
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                Edit
+            </button>
+            <button
+                @click="toggleActive()"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-xs transition-colors"
+                :class="selectedUser && selectedUser.is_active ? 'text-amber-400' : 'text-emerald-400'"
+            >
+                <i data-lucide="power" class="w-3.5 h-3.5"></i>
+                <span x-text="selectedUser && selectedUser.is_active ? 'Deactivate' : 'Activate'"></span>
+            </button>
+            <div class="flex-1"></div>
+            {# Delete — single click arm, second click confirm #}
+            <template x-if="!deleteConfirm">
+                <button
+                    @click="deleteConfirm = true"
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs text-zinc-500 hover:text-rose-400 hover:bg-rose-600/10 transition-colors"
+                >
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    Delete
+                </button>
+            </template>
+            <template x-if="deleteConfirm">
+                <div class="flex items-center gap-2">
+                    <button
+                        @click="confirmDelete()"
+                        :disabled="loading"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs text-white bg-rose-600 hover:bg-rose-500 transition-colors disabled:opacity-60"
+                    >
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        Confirm
+                    </button>
+                    <button @click="deleteConfirm = false" class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </template>
+        </div>
+
+        {# EDIT footer — Save / Cancel #}
+        <div x-show="mode === 'edit'" class="flex items-center gap-2">
+            <button
+                @click="saveEdit()"
+                :disabled="loading"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded bg-violet-600 hover:bg-violet-500 text-xs text-white font-medium transition-colors disabled:opacity-60"
+            >
+                <template x-if="loading">
+                    <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                </template>
+                <template x-if="!loading">
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                </template>
+                Save changes
+            </button>
+            <button @click="cancelEdit()" :disabled="loading"
+                class="px-3 py-1.5 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition-colors disabled:opacity-60">
+                Cancel
+            </button>
+        </div>
+
+        {# CREATE footer — Create Person / Cancel #}
+        <div x-show="mode === 'create'" class="flex items-center gap-2">
+            <button
+                @click="saveCreate()"
+                :disabled="loading"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded bg-violet-600 hover:bg-violet-500 text-xs text-white font-medium transition-colors disabled:opacity-60"
+            >
+                <template x-if="loading">
+                    <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                </template>
+                <template x-if="!loading">
+                    <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                </template>
+                Create person
+            </button>
+            <button @click="detailOpen = false; mode = 'view'; errors = {};" :disabled="loading"
+                class="px-3 py-1.5 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition-colors disabled:opacity-60">
+                Cancel
+            </button>
+        </div>
+
+    </div>{# end panel footer #}
+
+</aside>

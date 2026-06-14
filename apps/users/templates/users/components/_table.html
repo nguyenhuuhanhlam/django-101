@@ -1,0 +1,192 @@
+{# ══════════════════════════════════════════════════════════════ #}
+{# TABLE — empty state + spreadsheet grid                        #}
+{# Biến Alpine dùng: users, selectedUser, selectedIds,           #}
+{#   allSelected, isSelected(), toggleSelectAll(), toggleSelect() #}
+{#   selectUser(), openCreate()                                  #}
+{# ══════════════════════════════════════════════════════════════ #}
+<div class="
+    flex-1 min-w-0 min-h-0
+    border border-[#1a1a1e]
+    rounded overflow-hidden
+    bg-zinc-950/20
+    flex flex-col
+">
+
+    {# ── EMPTY STATE ── #}
+    <div
+        x-show="users.length === 0"
+        class="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8 py-16"
+    >
+        <div class="
+            w-14 h-14 rounded-2xl
+            bg-zinc-900 border border-zinc-800
+            flex items-center justify-center
+            text-zinc-600
+        ">
+            <i data-lucide="users" class="w-6 h-6"></i>
+        </div>
+        <div>
+            <p class="text-sm font-medium text-zinc-300 mb-1">No people yet</p>
+            <p class="text-xs text-zinc-600">Add your first person to get started.</p>
+        </div>
+        <button
+            @click="openCreate()"
+            class="
+                mt-1 flex items-center gap-2
+                px-3 py-1.5 rounded
+                bg-violet-600 hover:bg-violet-500
+                text-xs text-white font-medium
+                transition-colors
+            "
+        >
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            New Person
+        </button>
+    </div>
+
+    {# ── TABLE (hiển thị khi có user) ── #}
+    <div
+        x-show="users.length > 0"
+        class="overflow-x-auto flex-1 overflow-y-auto min-h-0"
+    >
+        <table class="w-full border-collapse text-left">
+            <thead>
+                <tr class="bg-zinc-950/40">
+                    {# Checkbox header — select all #}
+                    <th class="w-10 py-1.5 px-3.5 border-r border-b border-[#1a1a1e] text-center">
+                        <input
+                            type="checkbox"
+                            :checked="allSelected"
+                            @change="toggleSelectAll()"
+                            class="
+                                w-3.5 h-3.5 rounded-sm
+                                border-zinc-800 bg-transparent
+                                checked:bg-violet-600 checked:border-violet-600
+                                focus:ring-0 focus:ring-offset-0 cursor-pointer
+                            "
+                        >
+                    </th>
+                    {# Name #}
+                    <th class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e] text-sm font-normal text-zinc-400 tracking-wide">
+                        <div class="flex items-center gap-1.5">
+                            <i data-lucide="user" class="w-3.5 h-3.5 text-zinc-500"></i>
+                            <span>Name</span>
+                        </div>
+                    </th>
+                    {# Email #}
+                    <th class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e] text-sm font-normal text-zinc-400 tracking-wide">
+                        <div class="flex items-center gap-1.5">
+                            <i data-lucide="mail" class="w-3.5 h-3.5 text-zinc-500"></i>
+                            <span>Email</span>
+                        </div>
+                    </th>
+                    {# Status #}
+                    <th class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e] text-sm font-normal text-zinc-400 tracking-wide">
+                        <div class="flex items-center gap-1.5">
+                            <i data-lucide="activity" class="w-3.5 h-3.5 text-zinc-500"></i>
+                            <span>Status</span>
+                        </div>
+                    </th>
+                    {# Date Joined #}
+                    <th class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e] text-sm font-normal text-zinc-400 tracking-wide">
+                        <div class="flex items-center gap-1.5">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5 text-zinc-500"></i>
+                            <span>Creation date</span>
+                        </div>
+                    </th>
+                    {# + column — mở create panel #}
+                    <th
+                        class="w-10 py-1.5 px-3.5 border-b border-[#1a1a1e] text-center text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                        @click="openCreate()"
+                    >
+                        <i data-lucide="plus" class="w-3.5 h-3.5 mx-auto"></i>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {# ── User rows (Alpine x-for) ── #}
+                <template x-for="user in users" :key="user.id">
+                    <tr
+                        class="hover:bg-white/5 transition-colors cursor-pointer"
+                        :class="selectedUser && selectedUser.id === user.id ? 'bg-white/5' : ''"
+                        @click="selectUser(user)"
+                        tabindex="0"
+                        @keydown.enter="selectUser(user)"
+                    >
+                        {# Checkbox #}
+                        <td class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e] text-center" @click.stop>
+                            <input
+                                type="checkbox"
+                                :checked="isSelected(user.id)"
+                                @change="toggleSelect(user.id)"
+                                class="
+                                    w-3.5 h-3.5 rounded-sm
+                                    border-zinc-800 bg-transparent
+                                    checked:bg-violet-600 checked:border-violet-600
+                                    focus:ring-0 focus:ring-offset-0 cursor-pointer
+                                "
+                            >
+                        </td>
+                        {# Name + avatar #}
+                        <td class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e]">
+                            <div class="flex items-center gap-2">
+                                <div
+                                    class="w-5 h-5 rounded flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+                                    :class="user.avatar_class"
+                                    x-text="user.initial"
+                                ></div>
+                                <span class="text-zinc-200 text-xs font-medium" x-text="user.name"></span>
+                            </div>
+                        </td>
+                        {# Email #}
+                        <td class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e]">
+                            <template x-if="user.email">
+                                <span class="
+                                    inline-flex items-center px-2 py-0.5
+                                    rounded-full text-[11px] font-light
+                                    text-zinc-400 bg-zinc-900/40
+                                    border border-zinc-800/80
+                                " x-text="user.email"></span>
+                            </template>
+                            <template x-if="!user.email">
+                                <span class="text-zinc-600">—</span>
+                            </template>
+                        </td>
+                        {# Status #}
+                        <td class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e]">
+                            <div class="flex items-center gap-1.5">
+                                <div
+                                    class="w-1.5 h-1.5 rounded-full"
+                                    :class="user.is_active ? 'bg-emerald-500' : 'bg-zinc-600'"
+                                ></div>
+                                <span class="text-[11px] text-zinc-400" x-text="user.status"></span>
+                            </div>
+                        </td>
+                        {# Date joined #}
+                        <td class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e] text-xs text-zinc-400" x-text="user.date_joined"></td>
+                        {# Spacer #}
+                        <td class="py-1.5 px-3.5 border-b border-[#1a1a1e]"></td>
+                    </tr>
+                </template>
+
+                {# ── Calculate row ── #}
+                <tr class="bg-zinc-950/20 text-zinc-500 text-[11px]">
+                    <td class="py-1.5 px-3.5"></td>
+                    <td class="py-1.5 px-3.5">
+                        <div class="flex items-center justify-between w-full">
+                            <span class="text-zinc-600">Calculate</span>
+                            <span class="text-zinc-500">
+                                Count all <span x-text="totalCount"></span>
+                            </span>
+                        </div>
+                    </td>
+                    <td class="py-1.5 px-3.5"></td>
+                    <td class="py-1.5 px-3.5"></td>
+                    <td class="py-1.5 px-3.5"></td>
+                    <td class="py-1.5 px-3.5"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>{# end table scroll #}
+
+</div>{# end table wrapper #}

@@ -1,765 +1,240 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="
-    pt-5
-    mx-6
-    flex-1
-    flex
-    flex-col
-    min-h-0
-" x-data="{
-    detailOpen: false,
-    panelWidth: 380,
-    selectedUser: null,
-    selectUser(user) {
-        this.selectedUser = user;
-        this.detailOpen = true;
-        this.$nextTick(() => lucide.createIcons({
-            attrs: {
-                width: 16,
-                height: 16,
-                strokeWidth: 1.75
+{# ── Bootstrap data cho Alpine — CSRF token + danh sách users ban đầu ── #}
+<script>
+    window.CSRF_TOKEN  = '{{ csrf_token }}';
+    window.__USERS__   = {{ users_json|safe }};
+    window.PEOPLE_URLS = {
+        create:      '/people/create/',
+        update:      (id) => `/people/${id}/update/`,
+        del:         (id) => `/people/${id}/delete/`,
+        toggleActive:(id) => `/people/${id}/toggle-active/`,
+        bulkDelete:  '/people/bulk-delete/',
+    };
+</script>
+
+{#
+    Root div — chứa toàn bộ Alpine component cho trang People.
+    Các sub-component được include theo cấu trúc:
+        _bulk_bar.html  — thanh hành động bulk selection
+        _toolbar.html   — toolbar (label + count + Filter/Sort/Options)
+        _table.html     — bảng dữ liệu (empty state + spreadsheet)
+        _panel.html     — detail / edit / create split panel
+#}
+<div
+    class="pt-5 mx-6 flex-1 flex flex-col min-h-0"
+    @open-create.window="openCreate()"
+    x-data="{
+
+        /* ─── Panel state ─── */
+        detailOpen: false,
+        panelWidth: 380,
+        mode: 'view',          /* 'view' | 'edit' | 'create' */
+
+        /* ─── Users list (seeded từ server, driven bởi Alpine) ─── */
+        users: window.__USERS__ || [],
+
+        /* ─── Selected user / form data ─── */
+        selectedUser: null,
+        editData: {},
+        createData: {
+            username: '', first_name: '', last_name: '',
+            email: '', password1: '', password2: '',
+            is_staff: false, is_active: true
+        },
+
+        /* ─── Bulk selection ─── */
+        selectedIds: [],
+
+        /* ─── UI flags ─── */
+        loading: false,
+        errors: {},
+        deleteConfirm: false,
+
+        /* ══ Computed ══ */
+        get totalCount() { return this.users.length; },
+        get allSelected() {
+            return this.users.length > 0 && this.selectedIds.length === this.users.length;
+        },
+        isSelected(id) { return this.selectedIds.includes(id); },
+
+        /* ══ API helper — POST JSON, trả về JSON ══ */
+        async apiFetch(url, body = null) {
+            const opts = {
+                method: 'POST',
+                headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+            };
+            if (body !== null) {
+                opts.headers['Content-Type'] = 'application/json';
+                opts.body = JSON.stringify(body);
             }
-        }));
-    },
-    startResize(event) {
-        const startX = event.clientX;
-        const startWidth = this.panelWidth;
-        const onMove = (moveEvent) => {
-            const nextWidth = startWidth - (moveEvent.clientX - startX);
-            this.panelWidth = Math.min(560, Math.max(320, nextWidth));
-        };
-        const onUp = () => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-            document.body.classList.remove('select-none');
-        };
-        document.body.classList.add('select-none');
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-    }
-}">
+            const res = await fetch(url, opts);
+            return res.json();
+        },
 
-    <!-- TOOLBAR (Matches Twenty CRM layout below header) -->
-    <div class="
-        flex
-        items-center
-        justify-between
-        mb-2
-    ">
-        <!-- Left: View dropdown + item count -->
-        <div class="
-            flex
-            items-center
-            gap-1.5
-            cursor-pointer
-            group
-        ">
-            <i data-lucide="list" class="
-                w-4
-                h-4
-                text-zinc-400
-                group-hover:text-zinc-200
-                transition-colors
-            "></i>
-            <span class="
-                text-sm
-                font-medium
-                text-zinc-200
-                group-hover:text-white
-                transition-colors
-            ">
-                All People
-            </span>
-            <span class="
-                text-zinc-600
-                mx-0.5
-            ">
-                ·
-            </span>
-            <span class="
-                text-xs
-                text-zinc-500
-                group-hover:text-zinc-400
-                transition-colors
-            ">
-                {{ users.count|default:0 }}
-            </span>
-            <i data-lucide="chevron-down" class="
-                w-3.5
-                h-3.5
-                text-zinc-500
-                group-hover:text-zinc-300
-                transition-colors
-                ml-0.5
-            "></i>
-        </div>
+        /* ══ Chọn user (click row) ══ */
+        selectUser(user) {
+            this.selectedUser = user;
+            this.mode = 'view';
+            this.detailOpen = true;
+            this.deleteConfirm = false;
+            this.errors = {};
+            this.$nextTick(() => lucide.createIcons({ attrs: { width: 16, height: 16, strokeWidth: 1.75 } }));
+        },
 
-        <!-- Right: Filter / Sort / Options -->
-        <div class="
-            flex
-            items-center
-            gap-5
-            text-xs
-            text-zinc-400
-        ">
-            <button class="
-                hover:text-zinc-200
-                transition-colors
-            ">
-                Filter
-            </button>
-            <button class="
-                hover:text-zinc-200
-                transition-colors
-            ">
-                Sort
-            </button>
-            <button class="
-                hover:text-zinc-200
-                transition-colors
-            ">
-                Options
-            </button>
-        </div>
+        /* ══ Edit ══ */
+        startEdit() {
+            this.editData = {
+                first_name: this.selectedUser.first_name === '-' ? '' : this.selectedUser.first_name,
+                last_name:  this.selectedUser.last_name  === '-' ? '' : this.selectedUser.last_name,
+                email:      this.selectedUser.email,
+                is_staff:   this.selectedUser.is_staff,
+                is_active:  this.selectedUser.is_active,
+            };
+            this.mode = 'edit';
+            this.errors = {};
+            this.$nextTick(() => lucide.createIcons({ attrs: { width: 16, height: 16, strokeWidth: 1.75 } }));
+        },
+        cancelEdit() { this.mode = 'view'; this.errors = {}; },
+        async saveEdit() {
+            this.loading = true;
+            try {
+                const data = await this.apiFetch(
+                    window.PEOPLE_URLS.update(this.selectedUser.id),
+                    this.editData
+                );
+                if (data.success) {
+                    const idx = this.users.findIndex(u => u.id === this.selectedUser.id);
+                    if (idx !== -1) this.users.splice(idx, 1, data.user);
+                    this.selectedUser = data.user;
+                    this.mode = 'view';
+                    this.errors = {};
+                } else {
+                    this.errors = data.errors || {};
+                }
+            } catch(e) {
+                this.errors = { __all__: ['Network error — please try again.'] };
+            } finally {
+                this.loading = false;
+                this.$nextTick(() => lucide.createIcons({ attrs: { width: 16, height: 16, strokeWidth: 1.75 } }));
+            }
+        },
+
+        /* ══ Create ══ */
+        openCreate() {
+            this.createData = {
+                username: '', first_name: '', last_name: '',
+                email: '', password1: '', password2: '',
+                is_staff: false, is_active: true
+            };
+            this.selectedUser = null;
+            this.mode = 'create';
+            this.detailOpen = true;
+            this.errors = {};
+            this.$nextTick(() => lucide.createIcons({ attrs: { width: 16, height: 16, strokeWidth: 1.75 } }));
+        },
+        async saveCreate() {
+            this.loading = true;
+            try {
+                const data = await this.apiFetch(window.PEOPLE_URLS.create, this.createData);
+                if (data.success) {
+                    this.users.unshift(data.user);
+                    this.selectedUser = data.user;
+                    this.mode = 'view';
+                    this.errors = {};
+                } else {
+                    this.errors = data.errors || {};
+                }
+            } catch(e) {
+                this.errors = { __all__: ['Network error — please try again.'] };
+            } finally {
+                this.loading = false;
+                this.$nextTick(() => lucide.createIcons({ attrs: { width: 16, height: 16, strokeWidth: 1.75 } }));
+            }
+        },
+
+        /* ══ Delete ══ */
+        async confirmDelete() {
+            if (!this.deleteConfirm) { this.deleteConfirm = true; return; }
+            this.loading = true;
+            try {
+                const id = this.selectedUser.id;
+                const data = await this.apiFetch(window.PEOPLE_URLS.del(id));
+                if (data.success) {
+                    this.users = this.users.filter(u => u.id !== id);
+                    this.selectedIds = this.selectedIds.filter(sid => sid !== id);
+                    this.detailOpen = false;
+                    this.selectedUser = null;
+                    this.deleteConfirm = false;
+                }
+            } catch(e) { /* silent */ }
+            finally { this.loading = false; }
+        },
+
+        /* ══ Toggle active ══ */
+        async toggleActive() {
+            const id = this.selectedUser.id;
+            try {
+                const data = await this.apiFetch(window.PEOPLE_URLS.toggleActive(id));
+                if (data.success) {
+                    const idx = this.users.findIndex(u => u.id === id);
+                    if (idx !== -1) this.users.splice(idx, 1, data.user);
+                    this.selectedUser = data.user;
+                }
+            } catch(e) { /* silent */ }
+        },
+
+        /* ══ Bulk selection ══ */
+        toggleSelect(id) {
+            const idx = this.selectedIds.indexOf(id);
+            if (idx === -1) this.selectedIds.push(id);
+            else this.selectedIds.splice(idx, 1);
+        },
+        toggleSelectAll() {
+            if (this.allSelected) this.selectedIds = [];
+            else this.selectedIds = this.users.map(u => u.id);
+        },
+        async bulkDelete() {
+            const ids = [...this.selectedIds];
+            try {
+                const data = await this.apiFetch(window.PEOPLE_URLS.bulkDelete, { ids });
+                if (data.success) {
+                    this.users = this.users.filter(u => !ids.includes(u.id));
+                    this.selectedIds = [];
+                    if (this.selectedUser && ids.includes(this.selectedUser.id)) {
+                        this.detailOpen = false;
+                        this.selectedUser = null;
+                    }
+                }
+            } catch(e) { /* silent */ }
+        },
+
+        /* ══ Resize panel ══ */
+        startResize(event) {
+            const startX = event.clientX;
+            const startW = this.panelWidth;
+            const onMove = (e) => {
+                this.panelWidth = Math.min(560, Math.max(320, startW - (e.clientX - startX)));
+            };
+            const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                document.body.classList.remove('select-none');
+            };
+            document.body.classList.add('select-none');
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+    }"
+>
+    {% include 'users/components/_bulk_bar.html' %}
+    {% include 'users/components/_toolbar.html' %}
+
+    <div class="flex-1 flex min-h-0 mb-4">
+        {% include 'users/components/_table.html' %}
+        {% include 'users/components/_panel.html' %}
     </div>
 
-    <!-- SPREADSHEET GRID TABLE + DETAIL SPLIT PANEL -->
-    <div class="
-        flex-1
-        flex
-        min-h-0
-        mb-4
-    ">
-        <div class="
-            flex-1
-            min-w-0
-            min-h-0
-            border
-            border-[#1a1a1e]
-            rounded
-            overflow-hidden
-            bg-zinc-950/20
-            flex
-            flex-col
-        ">
-        <div class="
-            overflow-x-auto
-            flex-1
-            overflow-y-auto
-            min-h-0
-        ">
-            <table class="
-                w-full
-                border-collapse
-                text-left
-            ">
-                <thead>
-                    <tr class="
-                        bg-zinc-950/40
-                    ">
-                        <!-- Checkbox header -->
-                        <th class="
-                            w-10
-                            py-1.5
-                            px-3.5
-                            border-r
-                            border-b
-                            border-[#1a1a1e]
-                            text-center
-                        ">
-                            <input type="checkbox" class="
-                                    w-3.5
-                                    h-3.5
-                                    rounded-sm
-                                    border-zinc-800
-                                    bg-transparent
-                                    checked:bg-violet-600
-                                    checked:border-violet-600
-                                    focus:ring-0
-                                    focus:ring-offset-0
-                                    cursor-pointer
-                                ">
-                        </th>
-                        <!-- User / Name header -->
-                        <th class="
-                            py-1.5
-                            px-3.5
-                            border-r
-                            border-b
-                            border-[#1a1a1e]
-                            text-sm
-                            font-normal
-                            text-zinc-400
-                            tracking-wide
-                        ">
-                            <div class="
-                                flex
-                                items-center
-                                gap-1.5
-                            ">
-                                <i data-lucide="user" class="
-                                    w-3.5
-                                    h-3.5
-                                    text-zinc-500
-                                "></i>
-                                <span>Name</span>
-                            </div>
-                        </th>
-                        <!-- Email header -->
-                        <th class="
-                            py-1.5
-                            px-3.5
-                            border-r
-                            border-b
-                            border-[#1a1a1e]
-                            text-sm
-                            font-normal
-                            text-zinc-400
-                            tracking-wide
-                        ">
-                            <div class="
-                                flex
-                                items-center
-                                gap-1.5
-                            ">
-                                <i data-lucide="mail" class="
-                                    w-3.5
-                                    h-3.5
-                                    text-zinc-500
-                                "></i>
-                                <span>Email</span>
-                            </div>
-                        </th>
-                        <!-- Status header -->
-                        <th class="
-                            py-1.5
-                            px-3.5
-                            border-r
-                            border-b
-                            border-[#1a1a1e]
-                            text-sm
-                            font-normal
-                            text-zinc-400
-                            tracking-wide
-                        ">
-                            <div class="
-                                flex
-                                items-center
-                                gap-1.5
-                            ">
-                                <i data-lucide="activity" class="
-                                    w-3.5
-                                    h-3.5
-                                    text-zinc-500
-                                "></i>
-                                <span>Status</span>
-                            </div>
-                        </th>
-                        <!-- Date Joined header -->
-                        <th class="
-                            py-1.5
-                            px-3.5
-                            border-r
-                            border-b
-                            border-[#1a1a1e]
-                            text-sm
-                            font-normal
-                            text-zinc-400
-                            tracking-wide
-                        ">
-                            <div class="
-                                flex
-                                items-center
-                                gap-1.5
-                            ">
-                                <i data-lucide="calendar" class="
-                                    w-3.5
-                                    h-3.5
-                                    text-zinc-500
-                                "></i>
-                                <span>Creation date</span>
-                            </div>
-                        </th>
-                        <!-- Add column header '+' -->
-                        <th class="
-                            w-10
-                            py-1.5
-                            px-3.5
-                            border-b
-                            border-[#1a1a1e]
-                            text-center
-                            text-zinc-500
-                            hover:text-zinc-300
-                            cursor-pointer
-                        ">
-                            <i data-lucide="plus" class="
-                                w-3.5
-                                h-3.5
-                                mx-auto
-                            "></i>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in users %}
-                    <tr class="
-                        hover:bg-white/5
-                        transition-colors
-                        cursor-pointer
-                    " x-bind:class="selectedUser && selectedUser.id === {{ user.id }} ? 'bg-white/5' : ''" @click="selectUser({
-                        id: {{ user.id }},
-                        username: '{{ user.username|escapejs }}',
-                        name: '{% if user.first_name or user.last_name %}{{ user.first_name|escapejs }} {{ user.last_name|escapejs }}{% else %}{{ user.username|escapejs }}{% endif %}',
-                        firstName: '{{ user.first_name|default:"-"|escapejs }}',
-                        lastName: '{{ user.last_name|default:"-"|escapejs }}',
-                        email: '{{ user.email|default:"-"|escapejs }}',
-                        status: '{% if user.is_active %}Active{% else %}Inactive{% endif %}',
-                        isActive: {{ user.is_active|yesno:'true,false' }},
-                        isStaff: {{ user.is_staff|yesno:'true,false' }},
-                        isSuperuser: {{ user.is_superuser|yesno:'true,false' }},
-                        dateJoined: '{{ user.date_joined|date:"M d, Y H:i"|escapejs }}',
-                        lastLogin: '{% if user.last_login %}{{ user.last_login|date:"M d, Y H:i"|escapejs }}{% else %}-{% endif %}',
-                        initial: '{{ user.username|slice:":1"|upper|escapejs }}',
-                        avatarClass: '{% if user.username == 'administrator' %}bg-violet-600{% else %}bg-sky-600{% endif %}'
-                    })" tabindex="0" @keydown.enter="$el.click()">
-                        <!-- Checkbox -->
-                        <td class="
-                            py-1.5
-                            px-3.5
-                            border-r
-                            border-b
-                            border-[#1a1a1e]
-                            text-center
-                        ">
-                            <input type="checkbox" @click.stop class="
-                                    w-3.5
-                                    h-3.5
-                                    rounded-sm
-                                    border-zinc-800
-                                    bg-transparent
-                                    checked:bg-violet-600
-                                    checked:border-violet-600
-                                    focus:ring-0
-                                    focus:ring-offset-0
-                                    cursor-pointer
-                                ">
-                        </td>
-                        <!-- User / Name info -->
-                        <td class="
-                            py-1.5
-                            px-3.5
-                            border-r
-                            border-b
-                            border-[#1a1a1e]
-                        ">
-                            <div class="
-                                flex
-                                items-center
-                                gap-2
-                            ">
-                                <div class="
-                                    w-4.5
-                                    h-4.5
-                                    rounded
-                                    {% if user.username == 'administrator' %}bg-violet-600{% else %}bg-sky-600{% endif %}
-                                    text-white
-                                    text-[9px]
-                                    font-bold
-                                    flex
-                                    items-center
-                                    justify-center
-                                    shrink-0
-                                ">
-                                    {{ user.username|slice:":1"|upper }}
-                                </div>
-                                <span class="
-                                    text-zinc-200
-                                    text-xs
-                                    font-medium
-                                ">
-                                    {% if user.first_name or user.last_name %}
-                                    {{ user.first_name }} {{ user.last_name }}
-                                    {% else %}
-                                    {{ user.username }}
-                                    {% endif %}
-                                </span>
-                            </div>
-                        </td>
-                        <!-- Email (Pill domain style) -->
-                        <td class="
-                            py-1.5
-                            px-3.5
-                            border-r
-                            border-b
-                            border-[#1a1a1e]
-                        ">
-                            {% if user.email %}
-                            <span class="
-                                inline-flex
-                                items-center
-                                px-2
-                                py-0.5
-                                rounded-full
-                                text-[11px]
-                                font-light
-                                text-zinc-400
-                                bg-zinc-900/40
-                                border
-                                border-zinc-800/80
-                            ">
-                                {{ user.email }}
-                            </span>
-                            {% else %}
-                            <span class="text-zinc-600">—</span>
-                            {% endif %}
-                        </td>
-                        <!-- Status (Dot label style) -->
-                        <td class="
-                            py-1.5
-                            px-3.5
-                            border-r
-                            border-b
-                            border-[#1a1a1e]
-                        ">
-                            <div class="
-                                flex
-                                items-center
-                                gap-1.5
-                            ">
-                                <div class="
-                                    w-1.5
-                                    h-1.5
-                                    rounded-full
-                                    {% if user.is_active %}bg-emerald-500{% else %}bg-zinc-600{% endif %}
-                                "></div>
-                                <span class="
-                                    text-[11px]
-                                    text-zinc-400
-                                ">
-                                    {% if user.is_active %}Active{% else %}Inactive{% endif %}
-                                </span>
-                            </div>
-                        </td>
-                        <!-- Date Joined -->
-                        <td class="
-                            py-1.5
-                            px-3.5
-                            border-r
-                            border-b
-                            border-[#1a1a1e]
-                            text-xs
-                            text-zinc-400
-                        ">
-                            {{ user.date_joined|date:"M d, Y" }}
-                        </td>
-                        <!-- Add column cell spacer -->
-                        <td class="
-                            py-1.5
-                            px-3.5
-                            border-b
-                            border-[#1a1a1e]
-                        "></td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="
-                            py-6
-                            px-4
-                            text-center
-                            text-zinc-500
-                            text-xs
-                        ">
-                            No users found.
-                        </td>
-                    </tr>
-                    {% endfor %}
-
-                    <!-- '+ Add New' ROW (Matches Twenty CRM layout) -->
-                    <tr class="
-                        hover:bg-white/5
-                        transition-colors
-                    ">
-                        <td class="
-                            py-1.5
-                            px-3.5
-                            border-r
-                            border-b
-                            border-[#1a1a1e]
-                            text-center
-                            text-zinc-500
-                            text-xs
-                        ">
-                            +
-                        </td>
-                        <td class="
-                            py-1.5
-                            px-3.5
-                            border-r
-                            border-b
-                            border-[#1a1a1e]
-                            text-xs
-                            text-zinc-500
-                            hover:text-zinc-300
-                            cursor-pointer
-                        ">
-                            Add New
-                        </td>
-                        <td class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e]"></td>
-                        <td class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e]"></td>
-                        <td class="py-1.5 px-3.5 border-r border-b border-[#1a1a1e]"></td>
-                        <td class="py-1.5 px-3.5 border-b border-[#1a1a1e]"></td>
-                    </tr>
-
-                    <!-- 'Calculate' ROW (Summary row at the bottom) -->
-                    <tr class="
-                        bg-zinc-950/20
-                        text-zinc-500
-                        text-[11px]
-                    ">
-                        <td class="
-                            py-1.5
-                            px-3.5
-                        "></td>
-                        <td class="
-                            py-1.5
-                            px-3.5
-                        ">
-                            <div class="
-                                flex
-                                items-center
-                                justify-between
-                                w-full
-                            ">
-                                <span class="text-zinc-600">Calculate</span>
-                                <span class="text-zinc-500">Count all {{ users.count|default:0 }}</span>
-                            </div>
-                        </td>
-                        <td class="py-1.5 px-3.5"></td>
-                        <td class="py-1.5 px-3.5"></td>
-                        <td class="py-1.5 px-3.5"></td>
-                        <td class="py-1.5 px-3.5"></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        </div>
-
-        <aside x-cloak x-show="detailOpen" x-transition class="
-            relative
-            ml-3
-            min-h-0
-            shrink-0
-            border
-            border-[#1a1a1e]
-            rounded
-            overflow-hidden
-            bg-[#0f0f11]
-            flex
-            flex-col
-        " x-bind:style="`width: ${panelWidth}px`">
-            <div @mousedown="startResize($event)" class="
-                absolute
-                left-0
-                top-0
-                bottom-0
-                w-1.5
-                cursor-col-resize
-                hover:bg-violet-500/40
-                transition-colors
-                z-10
-            "></div>
-
-            <template x-if="selectedUser">
-                <div class="
-                    flex
-                    flex-col
-                    min-h-0
-                    h-full
-                ">
-                    <div class="
-                        h-14
-                        px-4
-                        border-b
-                        border-[#1a1a1e]
-                        flex
-                        items-center
-                        justify-between
-                        shrink-0
-                    ">
-                        <div class="
-                            flex
-                            items-center
-                            gap-2.5
-                            min-w-0
-                        ">
-                            <div class="
-                                w-7
-                                h-7
-                                rounded
-                                text-white
-                                text-xs
-                                font-bold
-                                flex
-                                items-center
-                                justify-center
-                                shrink-0
-                            " x-bind:class="selectedUser.avatarClass" x-text="selectedUser.initial"></div>
-                            <div class="
-                                min-w-0
-                            ">
-                                <div class="
-                                    text-sm
-                                    font-medium
-                                    text-zinc-100
-                                    truncate
-                                " x-text="selectedUser.name"></div>
-                                <div class="
-                                    text-[11px]
-                                    text-zinc-500
-                                    truncate
-                                " x-text="selectedUser.email"></div>
-                            </div>
-                        </div>
-                        <button @click="detailOpen = false" class="
-                            w-7
-                            h-7
-                            rounded
-                            flex
-                            items-center
-                            justify-center
-                            text-zinc-500
-                            hover:text-zinc-200
-                            hover:bg-white/5
-                            transition-colors
-                        ">
-                            <i data-lucide="x" class="
-                                w-4
-                                h-4
-                            "></i>
-                        </button>
-                    </div>
-
-                    <div class="
-                        flex-1
-                        min-h-0
-                        overflow-y-auto
-                        px-4
-                        py-4
-                        space-y-5
-                    ">
-                        <div class="
-                            space-y-2.5
-                        ">
-                            <div class="
-                                text-[11px]
-                                font-medium
-                                uppercase
-                                tracking-wider
-                                text-zinc-500
-                            ">
-                                Profile
-                            </div>
-                            <div class="
-                                border
-                                border-[#1a1a1e]
-                                rounded
-                                overflow-hidden
-                            ">
-                                <div class="grid grid-cols-[120px_minmax(0,1fr)] border-b border-[#1a1a1e]">
-                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Username</div>
-                                    <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser.username"></div>
-                                </div>
-                                <div class="grid grid-cols-[120px_minmax(0,1fr)] border-b border-[#1a1a1e]">
-                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">First name</div>
-                                    <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser.firstName"></div>
-                                </div>
-                                <div class="grid grid-cols-[120px_minmax(0,1fr)]">
-                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Last name</div>
-                                    <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser.lastName"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="
-                            space-y-2.5
-                        ">
-                            <div class="
-                                text-[11px]
-                                font-medium
-                                uppercase
-                                tracking-wider
-                                text-zinc-500
-                            ">
-                                Access
-                            </div>
-                            <div class="
-                                border
-                                border-[#1a1a1e]
-                                rounded
-                                overflow-hidden
-                            ">
-                                <div class="grid grid-cols-[120px_minmax(0,1fr)] border-b border-[#1a1a1e]">
-                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Status</div>
-                                    <div class="px-3 py-2 text-xs text-zinc-300">
-                                        <span class="
-                                            inline-flex
-                                            items-center
-                                            gap-1.5
-                                        ">
-                                            <span class="
-                                                w-1.5
-                                                h-1.5
-                                                rounded-full
-                                            " x-bind:class="selectedUser.isActive ? 'bg-emerald-500' : 'bg-zinc-600'"></span>
-                                            <span x-text="selectedUser.status"></span>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-[120px_minmax(0,1fr)] border-b border-[#1a1a1e]">
-                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Staff</div>
-                                    <div class="px-3 py-2 text-xs text-zinc-300" x-text="selectedUser.isStaff ? 'Yes' : 'No'"></div>
-                                </div>
-                                <div class="grid grid-cols-[120px_minmax(0,1fr)]">
-                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Superuser</div>
-                                    <div class="px-3 py-2 text-xs text-zinc-300" x-text="selectedUser.isSuperuser ? 'Yes' : 'No'"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="
-                            space-y-2.5
-                        ">
-                            <div class="
-                                text-[11px]
-                                font-medium
-                                uppercase
-                                tracking-wider
-                                text-zinc-500
-                            ">
-                                Timeline
-                            </div>
-                            <div class="
-                                border
-                                border-[#1a1a1e]
-                                rounded
-                                overflow-hidden
-                            ">
-                                <div class="grid grid-cols-[120px_minmax(0,1fr)] border-b border-[#1a1a1e]">
-                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Created</div>
-                                    <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser.dateJoined"></div>
-                                </div>
-                                <div class="grid grid-cols-[120px_minmax(0,1fr)]">
-                                    <div class="px-3 py-2 text-xs text-zinc-500 border-r border-[#1a1a1e]">Last login</div>
-                                    <div class="px-3 py-2 text-xs text-zinc-300 truncate" x-text="selectedUser.lastLogin"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </template>
-        </aside>
-    </div>
 </div>
 {% endblock %}

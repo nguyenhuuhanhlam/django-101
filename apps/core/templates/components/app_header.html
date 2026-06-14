@@ -50,20 +50,23 @@
         items-center
         gap-1.5
     ">
-        <button class="
-            h-7
-            px-2.5
-            rounded
-            border
-            border-zinc-800
-            text-xs
-            text-zinc-300
-            hover:bg-zinc-900
-            transition-colors
-            flex
-            items-center
-            gap-1.5
-        ">
+        <button
+            class="
+                h-7
+                px-2.5
+                rounded
+                border
+                border-zinc-800
+                text-xs
+                text-zinc-300
+                hover:bg-zinc-900
+                transition-colors
+                flex
+                items-center
+                gap-1.5
+            "
+            @click="$dispatch('open-create')"
+        >
             <span>{{ header_button|default:'+ New Company' }}</span>
             <span class="text-zinc-700">|</span>
             <span class="text-zinc-500 text-[10px] font-mono">⌘K</span>
